@@ -1,0 +1,97 @@
+<?php
+
+/**
+ * @file
+ * Provides content authorship recording and display system.
+ */
+
+/**
+ * Default Drupal implementation.
+ */
+define('OMBUAUTHOR_NODE_USER', 0);
+
+/**
+ * Another user, not the content owner.
+ */
+define('OMBUAUTHOR_OTHER_USER', 1);
+
+/**
+ * Other Author (plain text).
+ */
+define('OMBUAUTHOR_OTHER', 2);
+
+/**
+ * None.
+ */
+define('OMBUAUTHOR_NONE', 3);
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function ombuauthor_form_node_type_form_alter(array &$form, array $form_state) {
+  $node_type = isset($form['#node_type']->type) ? $form['#node_type']->type : '';
+  $form['ombuauthor'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Content Authoring options'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'additional_settings',
+  );
+  $form['ombuauthor']['ombuauthor_enabled'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use Content Author'),
+    '#default_value' => variable_get('ombuauthor_enabled_' . $node_type, 0),
+  );
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function ombuauthor_form_node_form_alter(array &$form, array &$form_state) {
+  $type = $form['type']['#value'];
+  if (variable_get('ombuauthor_enabled_' . $type, 0)) {
+    $node = $form_state['node'];
+
+    $form['author']['name']['#title'] = t('Content Owner');
+
+    $mode_selector = ':input[name="ombuauthor_mode"]';
+    $form['author']['ombuauthor_mode'] = array(
+      '#type' => 'select',
+      '#title' => t('Authored by'),
+      '#options' => array(
+        OMBUAUTHOR_NODE_USER => t('Content Owner (default)'),
+        OMBUAUTHOR_OTHER_USER => t('Other Site User'),
+        OMBUAUTHOR_OTHER => t('Other'),
+        OMBUAUTHOR_NONE => t('No Author'),
+      ),
+      '#weight' => -10,
+    );
+
+    $form['author']['ombuauthor_other_user'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Author'),
+      '#maxlength' => 60,
+      '#autocomplete_path' => 'user/autocomplete',
+      '#default_value' => !empty($node->name) ? $node->name : '',
+      '#weight' => -1,
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => OMBUAUTHOR_OTHER_USER),
+        ),
+      ),
+    );
+
+    $form['author']['ombuauthor_other'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Author'),
+      '#default_value' => '',
+      '#weight' => -1,
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => OMBUAUTHOR_OTHER),
+        ),
+      ),
+    );
+
+  }
+}

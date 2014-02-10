@@ -1,0 +1,66 @@
+<?php
+
+/**
+ * @file
+ * Install file for ombuauthor module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function ombuauthor_schema() {
+
+  $schema['ombuauthor'] = array(
+    'description' => 'Stores Content Author information for nodes.',
+    'fields' => array(
+      'mode' => array(
+        'description' => 'The Content Author mode.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'nid' => array(
+        'description' => 'Node ID',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'vid' => array(
+        'description' => 'Node Revision ID',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ),
+      'other_uid' => array(
+        'description' => 'User ID',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'default' => 0,
+      ),
+      'other' => array(
+        'description' => 'Other author text',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+      ),
+    ),
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function ombuauthor_install() {
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function ombuauthor_uninstall() {
+}
