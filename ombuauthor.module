@@ -26,6 +26,134 @@ define('OMBUAUTHOR_OTHER', 2);
 define('OMBUAUTHOR_NONE', 3);
 
 /**
+ * Implements hook_node_insert().
+ */
+function ombuauthor_node_insert($node) {
+  ombuauthor_node_save($node);
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function ombuauthor_node_update($node) {
+  ombuauthor_node_save($node);
+}
+
+/**
+ * Saves the ombuauthor fields for a node that's being inserted or updated.
+ */
+function ombuauthor_node_save($node) {
+  if (variable_get('ombuauthor_enabled_' . $node->type, 0)) {
+    $nid = $node->nid;
+    $vid = $node->vid;
+
+    $query = db_select('ombuauthor', 'oa');
+    $query->fields('oa', array('nid', 'vid'));
+    $query->condition('nid', $nid);
+    $query->condition('vid', $vid);
+    $exists = $query->execute()->rowCount();
+
+    $primary_keys = $exists ? array('nid', 'vid') : array();
+
+    $record = array(
+      'nid' => $nid,
+      'vid' => $vid,
+      'mode' => $node->ombuauthor['mode'],
+      'other_uid' => 0,
+      'other' => NULL,
+    );
+
+    if ($node->ombuauthor['mode'] == OMBUAUTHOR_OTHER_USER) {
+      // Find `other_uid` from the provided string in `ombuauthor_other_user`.
+      $account = user_load_by_name($node->ombuauthor['other_user']);
+      $record['other_uid'] = $account->uid;
+    }
+    elseif ($node->ombuauthor['mode'] == OMBUAUTHOR_OTHER) {
+      $record['other'] = $node->ombuauthor['other'];
+    }
+
+    drupal_write_record('ombuauthor', $record, $primary_keys);
+  }
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function ombuauthor_node_load($nodes) {
+  foreach ($nodes as $i => $node) {
+    $query = db_select('ombuauthor', 'oa');
+    $query->fields('oa', array('mode', 'other_uid', 'other'));
+    $query->condition('nid', $node->nid);
+    $query->condition('vid', $node->vid);
+    $row = $query->execute()->fetchAssoc();
+    $nodes[$i]->ombuauthor = $row;
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function ombuauthor_form_node_form_alter(array &$form, array &$form_state) {
+  $type = $form['type']['#value'];
+  if (variable_get('ombuauthor_enabled_' . $type, 0)) {
+    $node = $form_state['node'];
+
+    $form['author']['name']['#title'] = t('Content Owner');
+
+    $mode_selector = ':input[name="ombuauthor[mode]"]';
+    $form['author']['ombuauthor'] = array(
+      '#tree' => TRUE,
+      '#weight' => -10,
+    );
+    $form['author']['ombuauthor']['mode'] = array(
+      '#type' => 'select',
+      '#title' => t('Authored by'),
+      '#options' => array(
+        OMBUAUTHOR_NODE_USER => t('Content Owner (default)'),
+        OMBUAUTHOR_OTHER_USER => t('Other Site User'),
+        OMBUAUTHOR_OTHER => t('Other'),
+        OMBUAUTHOR_NONE => t('No Author'),
+      ),
+      '#default_value' => isset($node->ombuauthor['mode']) ? $node->ombuauthor['mode'] : OMBUAUTHOR_NODE_USER,
+      '#weight' => -10,
+    );
+
+    $form['author']['ombuauthor']['other_user'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Author'),
+      '#description' => t('Search for a site user.'),
+      '#maxlength' => 60,
+      '#autocomplete_path' => 'user/autocomplete',
+      '#default_value' => '',
+      '#weight' => -1,
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => OMBUAUTHOR_OTHER_USER),
+        ),
+      ),
+    );
+    if (isset($node->ombuauthor['other_uid'])) {
+      $account = user_load($node->ombuauthor['other_uid']);
+      $form['author']['ombuauthor']['other_user']['#default_value'] = $account->name;
+    }
+
+    $form['author']['ombuauthor']['other'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Author'),
+      '#description' => t('Enter a name to display as the author of this content.'),
+      '#default_value' => isset($node->ombuauthor['other']) ? $node->ombuauthor['other'] : '',
+      '#weight' => -1,
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => OMBUAUTHOR_OTHER),
+        ),
+      ),
+    );
+
+  }
+}
+
+/**
  * Implements hook_form_FORM_ID_alter().
  */
 function ombuauthor_form_node_type_form_alter(array &$form, array $form_state) {
@@ -42,56 +170,4 @@ function ombuauthor_form_node_type_form_alter(array &$form, array $form_state) {
     '#title' => t('Use Content Author'),
     '#default_value' => variable_get('ombuauthor_enabled_' . $node_type, 0),
   );
-}
-
-/**
- * Implements hook_form_alter().
- */
-function ombuauthor_form_node_form_alter(array &$form, array &$form_state) {
-  $type = $form['type']['#value'];
-  if (variable_get('ombuauthor_enabled_' . $type, 0)) {
-    $node = $form_state['node'];
-
-    $form['author']['name']['#title'] = t('Content Owner');
-
-    $mode_selector = ':input[name="ombuauthor_mode"]';
-    $form['author']['ombuauthor_mode'] = array(
-      '#type' => 'select',
-      '#title' => t('Authored by'),
-      '#options' => array(
-        OMBUAUTHOR_NODE_USER => t('Content Owner (default)'),
-        OMBUAUTHOR_OTHER_USER => t('Other Site User'),
-        OMBUAUTHOR_OTHER => t('Other'),
-        OMBUAUTHOR_NONE => t('No Author'),
-      ),
-      '#weight' => -10,
-    );
-
-    $form['author']['ombuauthor_other_user'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Author'),
-      '#maxlength' => 60,
-      '#autocomplete_path' => 'user/autocomplete',
-      '#default_value' => !empty($node->name) ? $node->name : '',
-      '#weight' => -1,
-      '#states' => array(
-        'visible' => array(
-          $mode_selector => array('value' => OMBUAUTHOR_OTHER_USER),
-        ),
-      ),
-    );
-
-    $form['author']['ombuauthor_other'] = array(
-      '#type' => 'textfield',
-      '#title' => t('Author'),
-      '#default_value' => '',
-      '#weight' => -1,
-      '#states' => array(
-        'visible' => array(
-          $mode_selector => array('value' => OMBUAUTHOR_OTHER),
-        ),
-      ),
-    );
-
-  }
 }
