@@ -63,12 +63,12 @@ function ombuauthor_node_save($node) {
       'other' => NULL,
     );
 
-    if ($node->ombuauthor['mode'] == OMBUAUTHOR_OTHER_USER) {
+    if ($node->ombuauthor['mode'] === OMBUAUTHOR_OTHER_USER) {
       // Find `other_uid` from the provided string in `ombuauthor_other_user`.
       $account = user_load_by_name($node->ombuauthor['other_user']);
       $record['other_uid'] = $account->uid;
     }
-    elseif ($node->ombuauthor['mode'] == OMBUAUTHOR_OTHER) {
+    elseif ($node->ombuauthor['mode'] === OMBUAUTHOR_OTHER) {
       $record['other'] = $node->ombuauthor['other'];
     }
 
@@ -87,6 +87,7 @@ function ombuauthor_node_load($nodes) {
     $query->condition('vid', $node->vid);
     $row = $query->execute()->fetchAssoc();
     $nodes[$i]->ombuauthor = $row;
+    $nodes[$i]->ombuauthor['mode'] = (int) $nodes[$i]->ombuauthor['mode'];
   }
 }
 
@@ -170,4 +171,23 @@ function ombuauthor_form_node_type_form_alter(array &$form, array $form_state) {
     '#title' => t('Use Content Author'),
     '#default_value' => variable_get('ombuauthor_enabled_' . $node_type, 0),
   );
+}
+
+/**
+ * Implements hook_username_alter().
+ */
+function ombuauthor_username_alter(&$name, $account) {
+  // Try to tell if this is a node that has ombuauthor.
+  if (isset($account->ombuauthor)) {
+    if ($account->ombuauthor['mode'] === OMBUAUTHOR_OTHER_USER) {
+      $other_user = user_load($account->ombuauthor['other_uid']);
+      $name = $other_user->name;
+    }
+    elseif ($account->ombuauthor['mode'] === OMBUAUTHOR_OTHER) {
+      $name = $account->ombuauthor['other'];
+    }
+    elseif ($account->ombuauthor['mode'] === OMBUAUTHOR_NONE) {
+      $name = '';
+    }
+  }
 }
