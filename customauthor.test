@@ -1,0 +1,92 @@
+<?php
+
+/**
+ * @file
+ * Tests for customauthor.module.
+ */
+
+/**
+ * Tests the custom author functionality against revisions.
+ */
+class CustomAuthorTestCase extends DrupalWebTestCase {
+
+  public static function getInfo() {
+    return array(
+      'name' => 'Custom Author',
+      'description' => 'Test the Custom Author functionality against nodes and node revisions.',
+      'group' => 'Custom Author',
+    );
+  }
+
+  function setUp() {
+    parent::setUp(array('customauthor'));
+
+    // Create and login user.
+    $web_user = $this->drupalCreateUser(array(
+      'view revisions',
+      'revert revisions',
+      'edit any page content',
+      'delete revisions',
+      'delete any page content',
+      'change content owner',
+      'change content author',
+    ));
+    $this->drupalLogin($web_user);
+  }
+
+  /**
+   * Checks node revision related operations.
+   */
+  function testRevisions() {
+
+    $revision_ids = array();
+
+    $node = $this->drupalCreateNode();
+    $node->comment = COMMENT_NODE_HIDDEN;
+    variable_set('node_submitted_' . $node->type, TRUE);
+    variable_set('customauthor_enabled_' . $node->type, 1);
+
+    $node->customauthor = array(
+      'mode' => CUSTOMAUTHOR_NODE_USER,
+    );
+    $node->revision = TRUE;
+    node_save($node);
+    $node = node_load($node->nid);
+    $revision_ids[] = $node->vid;
+    $this->drupalGet("node/$node->nid");
+    $this->assertText($node->name, 'Correct "Content Owner" name displayed.');
+
+    $user2 = $this->drupalCreateUser();
+    $node->customauthor = array(
+      'mode' => CUSTOMAUTHOR_OTHER_USER,
+      'other_user' => $user2->name,
+    );
+    $node->revision = TRUE;
+    node_save($node);
+    $revision_ids[] = $node->vid;
+    $this->drupalGet("node/$node->nid");
+    $this->assertText($user2->name, 'Correct "Other User" name displayed.');
+
+    $custom_author_text = 'Custom Name';
+    $node->customauthor['mode'] = CUSTOMAUTHOR_OTHER;
+    $node->customauthor['other'] = $custom_author_text;
+    $node->revision = TRUE;
+    node_save($node);
+    $revision_ids[] = $node->vid;
+    $this->drupalGet("node/$node->nid");
+    $this->assertText($custom_author_text, 'Correct "Other" author name displayed.');
+
+    $node->customauthor['mode'] = CUSTOMAUTHOR_NONE;
+    $node->revision = TRUE;
+    node_save($node);
+    $node = node_load($node->nid);
+    $revision_ids[] = $node->vid;
+    $this->drupalGet("node/$node->nid");
+    $this->assertNoText($node->name, '"None" author is not displayed.');
+
+    $this->drupalPost("node/$node->nid/revisions/" . $revision_ids[2] . "/revert", array(), t('Revert'));
+    $this->drupalGet("node/$node->nid");
+    $this->assertText($custom_author_text, 'Correct "Other" author name displayed when node is reverted.');
+  }
+
+}
