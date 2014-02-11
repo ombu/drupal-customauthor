@@ -26,6 +26,20 @@ define('OMBUAUTHOR_OTHER', 2);
 define('OMBUAUTHOR_NONE', 3);
 
 /**
+ * Implements hook_permission().
+ */
+function ombuauthor_permission() {
+  return array(
+    'change content owner' => array(
+      'title' => t('Change the Content Owner of a node'),
+    ),
+    'change content author' => array(
+      'title' => t('Change the Displayed Author of a node'),
+    ),
+  );
+}
+
+/**
  * Implements hook_node_insert().
  */
 function ombuauthor_node_insert($node) {
@@ -63,12 +77,12 @@ function ombuauthor_node_save($node) {
       'other' => NULL,
     );
 
-    if ($node->ombuauthor['mode'] === OMBUAUTHOR_OTHER_USER) {
+    if ((int) $node->ombuauthor['mode'] === OMBUAUTHOR_OTHER_USER) {
       // Find `other_uid` from the provided string in `ombuauthor_other_user`.
       $account = user_load_by_name($node->ombuauthor['other_user']);
       $record['other_uid'] = $account->uid;
     }
-    elseif ($node->ombuauthor['mode'] === OMBUAUTHOR_OTHER) {
+    elseif ((int) $node->ombuauthor['mode'] === OMBUAUTHOR_OTHER) {
       $record['other'] = $node->ombuauthor['other'];
     }
 
@@ -100,11 +114,13 @@ function ombuauthor_form_node_form_alter(array &$form, array &$form_state) {
     $node = $form_state['node'];
 
     $form['author']['name']['#title'] = t('Content Owner');
+    $form['author']['name']['#access'] = user_access('change content owner');
 
     $mode_selector = ':input[name="ombuauthor[mode]"]';
     $form['author']['ombuauthor'] = array(
       '#tree' => TRUE,
       '#weight' => -10,
+      '#access' => user_access('change content author'),
     );
     $form['author']['ombuauthor']['mode'] = array(
       '#type' => 'select',
