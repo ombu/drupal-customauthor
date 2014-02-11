@@ -57,7 +57,7 @@ function customauthor_node_update($node) {
  * Saves the customauthor fields for a node that's being inserted or updated.
  */
 function customauthor_node_save($node) {
-  if (variable_get('customauthor_enabled_' . $node->type, 0)) {
+  if (customauthor_node_type_enabled($node->type)) {
     $nid = $node->nid;
     $vid = $node->vid;
 
@@ -110,7 +110,7 @@ function customauthor_node_load($nodes) {
  */
 function customauthor_form_node_form_alter(array &$form, array &$form_state) {
   $type = $form['type']['#value'];
-  if (variable_get('customauthor_enabled_' . $type, 0)) {
+  if (customauthor_node_type_enabled($type)) {
     $node = $form_state['node'];
 
     $form['author']['name']['#title'] = t('Content Owner');
@@ -210,7 +210,7 @@ function customauthor_form_node_type_form_alter(array &$form, array $form_state)
   $form['customauthor']['customauthor_enabled'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use Custom Author'),
-    '#default_value' => variable_get('customauthor_enabled_' . $node_type, 0),
+    '#default_value' => customauthor_node_type_enabled($node_type),
   );
 }
 
@@ -252,4 +252,11 @@ function customauthor_preprocess_node(&$variables) {
   if (isset($node->customauthor) && $node->customauthor['mode'] === CUSTOMAUTHOR_NONE) {
     $variables['submitted'] = t('Submitted on !datetime', array('!datetime' => $variables['date']));
   }
+}
+
+/**
+ * Helper function to tell if customauthor is enabled for a content type.
+ */
+function customauthor_node_type_enabled($node_type, $default_value = 1) {
+  return variable_get('customauthor_enabled_' . $node_type, $default_value);
 }
