@@ -242,3 +242,14 @@ function customauthor_preprocess_username(&$variables) {
     unset($variables['link_path']);
   }
 }
+
+/**
+ * Implements hook_preprocess_node().
+ */
+function customauthor_preprocess_node(&$variables) {
+  $node = $variables['node'];
+
+  if (isset($node->customauthor) && $node->customauthor['mode'] === CUSTOMAUTHOR_NONE) {
+    $variables['submitted'] = t('Submitted on !datetime', array('!datetime' => $variables['date']));
+  }
+}
