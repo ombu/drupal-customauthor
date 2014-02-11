@@ -137,7 +137,7 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
 
     $form['author']['customauthor']['content_owner'] = array(
       '#type' => 'item',
-      '#title' => t('Author'),
+      '#title' => t('Content Owner'),
       '#markup' => '<em>' . $node->name . '</em>',
       '#states' => array(
         'visible' => array(
