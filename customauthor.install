@@ -2,15 +2,15 @@
 
 /**
  * @file
- * Install file for ombuauthor module.
+ * Install file for customauthor module.
  */
 
 /**
  * Implements hook_schema().
  */
-function ombuauthor_schema() {
+function customauthor_schema() {
 
-  $schema['ombuauthor'] = array(
+  $schema['customauthor'] = array(
     'description' => 'Stores Content Author information for nodes.',
     'fields' => array(
       'nid' => array(
@@ -48,16 +48,4 @@ function ombuauthor_schema() {
   );
 
   return $schema;
-}
-
-/**
- * Implements hook_install().
- */
-function ombuauthor_install() {
-}
-
-/**
- * Implements hook_uninstall().
- */
-function ombuauthor_uninstall() {
 }

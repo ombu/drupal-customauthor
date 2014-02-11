@@ -1,0 +1,232 @@
+<?php
+
+/**
+ * @file
+ * Provides content authorship recording and display system.
+ */
+
+/**
+ * Default Drupal implementation.
+ */
+define('CUSTOMAUTHOR_NODE_USER', 0);
+
+/**
+ * Another user, not the content owner.
+ */
+define('CUSTOMAUTHOR_OTHER_USER', 1);
+
+/**
+ * Other Author (plain text).
+ */
+define('CUSTOMAUTHOR_OTHER', 2);
+
+/**
+ * None.
+ */
+define('CUSTOMAUTHOR_NONE', 3);
+
+/**
+ * Implements hook_permission().
+ */
+function customauthor_permission() {
+  return array(
+    'change content owner' => array(
+      'title' => t('Change the Content Owner of a node'),
+    ),
+    'change content author' => array(
+      'title' => t('Change the Displayed Author of a node'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_node_insert().
+ */
+function customauthor_node_insert($node) {
+  customauthor_node_save($node);
+}
+
+/**
+ * Implements hook_node_update().
+ */
+function customauthor_node_update($node) {
+  customauthor_node_save($node);
+}
+
+/**
+ * Saves the customauthor fields for a node that's being inserted or updated.
+ */
+function customauthor_node_save($node) {
+  if (variable_get('customauthor_enabled_' . $node->type, 0)) {
+    $nid = $node->nid;
+    $vid = $node->vid;
+
+    $query = db_select('customauthor', 'oa');
+    $query->fields('oa', array('nid', 'vid'));
+    $query->condition('nid', $nid);
+    $query->condition('vid', $vid);
+    $exists = $query->execute()->rowCount();
+
+    $primary_keys = $exists ? array('nid', 'vid') : array();
+
+    $record = array(
+      'nid' => $nid,
+      'vid' => $vid,
+      'mode' => $node->customauthor['mode'],
+      'other_uid' => 0,
+      'other' => NULL,
+    );
+
+    if ((int) $node->customauthor['mode'] === CUSTOMAUTHOR_OTHER_USER) {
+      // Find `other_uid` from the provided string in `customauthor_other_user`.
+      $account = user_load_by_name($node->customauthor['other_user']);
+      $record['other_uid'] = $account->uid;
+    }
+    elseif ((int) $node->customauthor['mode'] === CUSTOMAUTHOR_OTHER) {
+      $record['other'] = $node->customauthor['other'];
+    }
+
+    drupal_write_record('customauthor', $record, $primary_keys);
+  }
+}
+
+/**
+ * Implements hook_node_load().
+ */
+function customauthor_node_load($nodes) {
+  foreach ($nodes as $i => $node) {
+    $query = db_select('customauthor', 'oa');
+    $query->fields('oa', array('mode', 'other_uid', 'other'));
+    $query->condition('nid', $node->nid);
+    $query->condition('vid', $node->vid);
+    $row = $query->execute()->fetchAssoc();
+    $nodes[$i]->customauthor = $row;
+    $nodes[$i]->customauthor['mode'] = (int) $nodes[$i]->customauthor['mode'];
+  }
+}
+
+/**
+ * Implements hook_form_alter().
+ */
+function customauthor_form_node_form_alter(array &$form, array &$form_state) {
+  $type = $form['type']['#value'];
+  if (variable_get('customauthor_enabled_' . $type, 0)) {
+    $node = $form_state['node'];
+
+    $form['author']['name']['#title'] = t('Content Owner');
+    $form['author']['name']['#access'] = user_access('change content owner');
+
+    $mode_selector = ':input[name="customauthor[mode]"]';
+    $form['author']['customauthor'] = array(
+      '#tree' => TRUE,
+      '#weight' => -10,
+      '#access' => user_access('change content author'),
+    );
+    $form['author']['customauthor']['mode'] = array(
+      '#type' => 'select',
+      '#title' => t('Authored by'),
+      '#options' => array(
+        CUSTOMAUTHOR_NODE_USER => t('Content Owner (default)'),
+        CUSTOMAUTHOR_OTHER_USER => t('Other Site User'),
+        CUSTOMAUTHOR_OTHER => t('Other'),
+        CUSTOMAUTHOR_NONE => t('No Author'),
+      ),
+      '#default_value' => isset($node->customauthor['mode']) ? $node->customauthor['mode'] : CUSTOMAUTHOR_NODE_USER,
+      '#weight' => -10,
+    );
+
+    $form['author']['customauthor']['other_user'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Author'),
+      '#description' => t('Search for a site user.'),
+      '#maxlength' => 60,
+      '#autocomplete_path' => 'user/autocomplete',
+      '#default_value' => '',
+      '#weight' => -1,
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => CUSTOMAUTHOR_OTHER_USER),
+        ),
+      ),
+    );
+    if (isset($node->customauthor['other_uid'])) {
+      $account = user_load($node->customauthor['other_uid']);
+      $form['author']['customauthor']['other_user']['#default_value'] = $account->name;
+    }
+
+    $form['author']['customauthor']['other'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Author'),
+      '#description' => t('Enter a name to display as the author of this content.'),
+      '#default_value' => isset($node->customauthor['other']) ? $node->customauthor['other'] : '',
+      '#weight' => -1,
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => CUSTOMAUTHOR_OTHER),
+        ),
+      ),
+    );
+
+  }
+}
+
+/**
+ * Implements hook_node_validate().
+ */
+function customauthor_node_validate($node, $form, &$form_state) {
+  // Validate the "other_user" field.
+  if (!empty($node->customauthor) && $node->customauthor['mode'] == CUSTOMAUTHOR_OTHER_USER) {
+    $name = $node->customauthor['other_user'];
+    if (!($account = user_load_by_name($name))) {
+      form_set_error('customauthor][other_user', t('The username %name does not exist.', array('%name' => $name)));
+    }
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function customauthor_form_node_type_form_alter(array &$form, array $form_state) {
+  $node_type = isset($form['#node_type']->type) ? $form['#node_type']->type : '';
+  $form['customauthor'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Custom Author'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#group' => 'additional_settings',
+  );
+  $form['customauthor']['customauthor_enabled'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Use Custom Author'),
+    '#default_value' => variable_get('customauthor_enabled_' . $node_type, 0),
+  );
+}
+
+/**
+ * Implements hook_username_alter().
+ */
+function customauthor_username_alter(&$name, $account) {
+  // Try to tell if this is a node that has customauthor.
+  if (isset($account->customauthor)) {
+    if ($account->customauthor['mode'] === CUSTOMAUTHOR_OTHER_USER) {
+      $other_user = user_load($account->customauthor['other_uid']);
+      $name = $other_user->name;
+    }
+    elseif ($account->customauthor['mode'] === CUSTOMAUTHOR_OTHER) {
+      $name = $account->customauthor['other'];
+    }
+    elseif ($account->customauthor['mode'] === CUSTOMAUTHOR_NONE) {
+      $name = '';
+    }
+  }
+}
+
+/**
+ * Implements hook_preprocess_username().
+ */
+function customauthor_preprocess_username(&$variables) {
+  if (isset($variables['account']->customauthor)) {
+    $variables['profile_access'] = FALSE;
+    unset($variables['link_path']);
+  }
+}

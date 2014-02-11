@@ -1,4 +1,4 @@
-name = "OMBU Author"
+name = "Custom Author"
 description = "Provides a standard approach to recording and displaying content authorship on Drupal sites."
 package = 'OMBU'
 core = 7.x

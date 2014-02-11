@@ -1,5 +1,5 @@
-OMBU Content Author
-===================
+Custom Content Author
+=====================
 
 This module provides a separation between the "Content Owner" (node owner) and
 the "Content Author", the displayed author for a node.
