@@ -135,6 +135,18 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
       '#weight' => -10,
     );
 
+    $form['author']['customauthor']['content_owner'] = array(
+      '#type' => 'item',
+      '#title' => t('Author'),
+      '#markup' => '<em>' . $node->name . '</em>',
+      '#states' => array(
+        'visible' => array(
+          $mode_selector => array('value' => CUSTOMAUTHOR_NODE_USER),
+        ),
+      ),
+      '#access' => !user_access('change content owner'),
+    );
+
     $form['author']['customauthor']['other_user'] = array(
       '#type' => 'textfield',
       '#title' => t('Author'),
