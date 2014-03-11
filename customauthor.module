@@ -69,6 +69,11 @@ function customauthor_node_save($node) {
 
     $primary_keys = $exists ? array('nid', 'vid') : array();
 
+    // Set the default customauthor mode to node user.
+    if (!isset($node->customauthor['mode'])) {
+       $node->customauthor['mode'] = CUSTOMAUTHOR_NODE_USER;
+    }
+
     $record = array(
       'nid' => $nid,
       'vid' => $vid,
