@@ -243,6 +243,7 @@ function customauthor_username_alter(&$name, $account) {
  */
 function customauthor_preprocess_username(&$variables) {
   if (isset($variables['account']->customauthor)) {
+    $variables['name'] = $variables['name_raw'];
     $variables['profile_access'] = FALSE;
     unset($variables['link_path']);
   }
