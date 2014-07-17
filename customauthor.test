@@ -44,7 +44,7 @@ class CustomAuthorTestCase extends DrupalWebTestCase {
     $node = $this->drupalCreateNode();
     $node->comment = COMMENT_NODE_HIDDEN;
     variable_set('node_submitted_' . $node->type, TRUE);
-    variable_set('customauthor_enabled_' . $node->type, 1);
+    variable_set('customauthor_' . $node->type, array('enabled' => 1));
 
     $node->customauthor = array(
       'mode' => CUSTOMAUTHOR_NODE_USER,

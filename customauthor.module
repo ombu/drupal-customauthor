@@ -124,7 +124,8 @@ function customauthor_node_load($nodes) {
  */
 function customauthor_form_node_form_alter(array &$form, array &$form_state) {
   $type = $form['type']['#value'];
-  if (customauthor_node_type_enabled($type)) {
+  $settings = customauthor_node_type_settings($type);
+  if ($settings['enabled']) {
     $node = $form_state['node'];
 
     $form['author']['name']['#title'] = t('Content Owner');
@@ -193,6 +194,10 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
       ),
     );
 
+    if ($settings['multiple_authors'] && isset($form[$settings['multiple_authors_field']])) {
+      $form['author'][$settings['multiple_authors_field'] . '_temp'] = $form[$settings['multiple_authors_field']];
+      $form[$settings['multiple_authors_field']]['#access'] = FALSE;
+    }
   }
 }
 
@@ -207,6 +212,10 @@ function customauthor_node_validate($node, $form, &$form_state) {
       form_set_error('customauthor][other_user', t('The username %name does not exist.', array('%name' => $name)));
     }
   }
+  $settings = customauthor_node_type_settings($node->type);
+  if ($settings['multiple_authors'] && isset($form[$settings['multiple_authors_field']])) {
+    $form_state['values'][$settings['multiple_authors_field']] = $form_state['values'][$settings['multiple_authors_field'] . '_temp'];
+  }
 }
 
 /**
@@ -214,6 +223,7 @@ function customauthor_node_validate($node, $form, &$form_state) {
  */
 function customauthor_form_node_type_form_alter(array &$form, array $form_state) {
   $node_type = isset($form['#node_type']->type) ? $form['#node_type']->type : '';
+
   $form['customauthor'] = array(
     '#type' => 'fieldset',
     '#title' => t('Custom Author'),
@@ -221,11 +231,66 @@ function customauthor_form_node_type_form_alter(array &$form, array $form_state)
     '#collapsed' => TRUE,
     '#group' => 'additional_settings',
   );
-  $form['customauthor']['customauthor_enabled'] = array(
+  $form['customauthor']['customauthor'] = array(
+    '#tree' => TRUE,
+  );
+
+  $settings = customauthor_node_type_settings($node_type);
+
+  $form['customauthor']['customauthor']['enabled'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use Custom Author'),
-    '#default_value' => customauthor_node_type_enabled($node_type),
+    '#default_value' => $settings['enabled'],
   );
+  $form['customauthor']['customauthor']['multiple_authors'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Allow multiple authors'),
+    '#description' => t('Check to allow multiple authors (other than the default one) to be attached to a node'),
+    '#default_value' => isset($settings['multiple_authors']) ? $settings['multiple_authors'] : 0,
+    '#states' => array(
+      'visible' => array(
+        ':input[name="customauthor[enabled]"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  // Gather a list of all user reference fields on node type for use as multiple
+  // author field.
+  $fields = field_info_instances('node', $node_type);
+  foreach ($fields as $key => $field) {
+    $field_info = field_info_field($key);
+    if ($field_info['type'] == 'entityreference') {
+      $options[$key] = $field['label'];
+    }
+  }
+  $form['customauthor']['customauthor']['multiple_authors_field'] = array(
+    '#type' => 'select',
+    '#title' => t('Multiple author field'),
+    '#options' => isset($options) ? $options : array('' => t('No reference fields available')),
+    '#description' => t('Select the user reference field to use as multiple author field. If there are no user reference fields on this content type, then <a href="!url">create one</a>.', array(
+      '!url' => url('admin/structure/types/manage/' . $node_type . '/fields'),
+    )),
+    '#default_value' => isset($settings['multiple_authors_field']) ? $settings['multiple_authors_field'] : 0,
+    '#states' => array(
+      'visible' => array(
+        ':input[name="customauthor[multiple_authors]"]' => array('checked' => TRUE),
+      ),
+    ),
+  );
+
+  $form['#submit'][] = 'customauthor_node_type_form_submit';
+}
+
+/**
+ * Submit handler for node type settings form.
+ *
+ * Fixes tree handling for nested variables.
+ */
+function customauthor_node_type_form_submit($form, &$form_state) {
+  $node_type = $form['#node_type']->type;
+
+  variable_del('customauthor_' . $node_type);
+  variable_set('customauthor_' . $node_type, $form_state['values']['customauthor']);
 }
 
 /**
@@ -272,7 +337,33 @@ function customauthor_preprocess_node(&$variables) {
 
 /**
  * Helper function to tell if customauthor is enabled for a content type.
+ *
+ * @param string $node_type
+ *   The valid node type to load settings for.
+ *
+ * @return bool
+ *   TRUE if customauthor is enabled for node type.
  */
-function customauthor_node_type_enabled($node_type, $default_value = 1) {
-  return variable_get('customauthor_enabled_' . $node_type, $default_value);
+function customauthor_node_type_enabled($node_type) {
+  $settings = customauthor_node_type_settings($node_type);
+  return $settings['enabled'];
+}
+
+/**
+ * Helper function to return customauthor settings for a node type.
+ *
+ * @param string $node_type
+ *   The valid node type to load settings for.
+ * @param bool $default_value
+ *   The default enabled state for node type if not set. Defaults to TRUE.
+ *
+ * @return array
+ *   Array of custom author settings.
+ */
+function customauthor_node_type_settings($node_type, $default_value = TRUE) {
+  return variable_get('customauthor_' . $node_type, array(
+    'enabled' => $default_value,
+    'multiple_authors' => FALSE,
+    'multiple_authors_field' => '',
+  ));
 }
