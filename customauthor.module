@@ -424,10 +424,15 @@ function theme_customauthor_multiple_authors($variables) {
   $settings = $variables['settings'];
   $authors = $variables['authors'];
 
+  if (!$authors) {
+    return '';
+  }
+
   // Assume that authors are entity references, show linked entity labels.
   $field_info = field_info_field($settings['multiple_authors_field']);
   $entity_type = $field_info['settings']['target_type'];
 
+  $links = array();
   foreach ($authors as $author) {
     $entity = entity_load_single($entity_type, $author['target_id']);
     $path = entity_uri($entity_type, $entity);
