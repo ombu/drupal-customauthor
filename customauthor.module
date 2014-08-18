@@ -356,7 +356,7 @@ function customauthor_preprocess_username(&$variables) {
 
           $variables['name'] = theme('customauthor_multiple_authors', array(
             'authors' => $authors,
-            'settings' => $settings,
+            'settings' => $settings + array('account' => $variables['account']),
           ));
           unset($variables['link_path']);
           $variables['multiple_authors'] = TRUE;
