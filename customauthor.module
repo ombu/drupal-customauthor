@@ -145,6 +145,7 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
     $node = $form_state['node'];
 
     $form['author']['name']['#title'] = t('Content Owner');
+    $form['author']['name']['#description'] = t('The CMS user with permission to manage this content.');
     $form['author']['name']['#access'] = user_access('change content owner');
 
     $mode_selector = ':input[name="customauthor[mode]"]';
