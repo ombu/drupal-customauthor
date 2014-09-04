@@ -151,7 +151,7 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
     $mode_selector = ':input[name="customauthor[mode]"]';
     $form['author']['customauthor'] = array(
       '#tree' => TRUE,
-      '#weight' => -10,
+      '#weight' => $form['author']['name']['#weight'] + 0.5,
       '#access' => user_access('change content author'),
     );
     $form['author']['customauthor']['mode'] = array(
