@@ -145,7 +145,7 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
     $node = $form_state['node'];
 
     $form['author']['name']['#title'] = t('Content Owner');
-    $form['author']['name']['#description'] = t('The CMS user with permission to manage this content.');
+    $form['author']['name']['#description'] = t('This is for records and administrative use, and will not be shown to site visitors.');
     $form['author']['name']['#access'] = user_access('change content owner');
 
     $mode_selector = ':input[name="customauthor[mode]"]';
@@ -159,8 +159,8 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
       '#title' => t('Authored by'),
       '#options' => array(
         CUSTOMAUTHOR_NODE_USER => t('Content Owner (default)'),
-        CUSTOMAUTHOR_OTHER_USER => t('Other Site User'),
-        CUSTOMAUTHOR_OTHER => t('Other'),
+        CUSTOMAUTHOR_OTHER_USER => t('Other site user(s)'),
+        CUSTOMAUTHOR_OTHER => t('Arbitrary text'),
         CUSTOMAUTHOR_NONE => t('No Author'),
       ),
       '#default_value' => isset($node->customauthor['mode']) ? $node->customauthor['mode'] : CUSTOMAUTHOR_NODE_USER,
@@ -201,7 +201,7 @@ function customauthor_form_node_form_alter(array &$form, array &$form_state) {
     $form['author']['customauthor']['other'] = array(
       '#type' => 'textfield',
       '#title' => t('Author'),
-      '#description' => t('Enter a name to display as the author of this content.'),
+      '#description' => t('Enter any text to display as the author of this content'),
       '#default_value' => isset($node->customauthor['other']) ? $node->customauthor['other'] : '',
       '#weight' => -1,
       '#states' => array(
