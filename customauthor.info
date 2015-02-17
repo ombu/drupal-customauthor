@@ -1,6 +1,6 @@
 name = "Custom Author"
 description = "Provides a standard approach to recording and displaying content authorship on Drupal sites."
-version = 7.x-0.2
+version = 7.x-0.3
 files[] = customauthor.test
 files[] = customauthor.module
 package = 'OMBU'
