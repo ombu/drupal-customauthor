@@ -365,6 +365,11 @@ function customauthor_preprocess_username(&$variables) {
         break;
 
       case CUSTOMAUTHOR_OTHER:
+        $variables['name'] = $variables['account']->customauthor['other'];
+        $variables['profile_access'] = FALSE;
+        unset($variables['link_path']);
+        break;
+
       case CUSTOMAUTHOR_NONE:
         $variables['name'] = $variables['name_raw'];
         $variables['profile_access'] = FALSE;
