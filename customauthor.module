@@ -375,6 +375,58 @@ function customauthor_preprocess_username(&$variables) {
 }
 
 /**
+ * Implements hook_node_view().
+ */
+function customauthor_node_view($node, $view_mode, $langcode) {
+  if ($view_mode == 'rss') {
+    // Ensure custom author is used for RSS feeds.
+    $settings = customauthor_node_type_settings($node->type);
+
+    switch ($node->customauthor['mode']) {
+      // If viewing multiple authors, use a more complex theme.
+      case CUSTOMAUTHOR_OTHER_USER:
+        if ($settings['multiple_authors']) {
+          $author = '';
+          $authors = field_get_items('node', $node, $settings['multiple_authors_field']);
+          if ($authors) {
+            // Assume that authors are entity references, show linked entity labels.
+            $field_info = field_info_field($settings['multiple_authors_field']);
+            $entity_type = $field_info['settings']['target_type'];
+
+            $names = array();
+            foreach ($authors as $author) {
+              $entity = entity_load_single($entity_type, $author['target_id']);
+              $names[] = entity_label($entity_type, $entity);
+            }
+
+            // Add "and" to last element for more natural listing.
+            if (count($names) > 1) {
+              $names[] = 'and ' . array_pop($names);
+            }
+
+            // Only join by commas if there are more than two elements.
+            $author = count($names) > 2 ? implode(', ', $names) : implode(' ', $names);
+          }
+        }
+        break;
+
+      case CUSTOMAUTHOR_OTHER:
+      case CUSTOMAUTHOR_NONE:
+      default:
+        $author = $node->name;
+        break;
+
+    }
+
+    foreach ($node->rss_elements as $key => $values) {
+      if ($values['key'] == 'dc:creator') {
+        $node->rss_elements[$key]['value'] = $author;
+      }
+    }
+  }
+}
+
+/**
  * Implements hook_preprocess_node().
  */
 function customauthor_preprocess_node(&$variables) {
