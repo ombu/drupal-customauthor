@@ -437,7 +437,11 @@ function theme_customauthor_multiple_authors($variables) {
   foreach ($authors as $author) {
     $entity = entity_load_single($entity_type, $author['target_id']);
     $path = entity_uri($entity_type, $entity);
-    $links[] = l(entity_label($entity_type, $entity), $path['path'], $path['options']);
+    $path['options']['html'] = TRUE;
+    $name = '<span class="username-wrapper" about="'.$path['path'].'" itemprop="author" itemscope itemtype="https://schema.org/Person">';
+    $name .= '<span itemprop="name">' . entity_label($entity_type, $entity) . '</span>';
+    $name .= '</span>';
+    $links[] = l($name, $path['path'], $path['options']);
   }
 
   // Add "and" to last element for more natural listing.
